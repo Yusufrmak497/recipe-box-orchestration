@@ -88,4 +88,4 @@ shared state (commits, merges, `main`) stayed with me. The critic's read-only se
 that could "just fix it" would stop being an independent check.
 
 ## 4. What I learned
-<!-- Yusuf: 3–5 sentences on orchestrating agents. -->
+Two agents ran at the same time without a single conflict, and that wasn't because they were smart: each had its own worktree and its own test database, and the rules pointed them at different files and different parts of `main.py`. The generator's own tests were green in every round, yet the critic still found real bugs in two rounds (like "1,000 g" × 2 = "2 g"), which showed me that an agent struggles to see the gaps in its own code and an independent checker is necessary. The rubric works like a specification: the critic followed it literally and even had a reasonable `factor ≤ 100` cap removed because the rubric only said "positive number", so a missing rule means a missing result. The final check still belongs to a person: the agents couldn't merge, I did, and I ran the full suite after every merge because there can be semantic conflicts that git can't see.
