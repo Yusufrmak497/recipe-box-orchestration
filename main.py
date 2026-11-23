@@ -93,3 +93,53 @@ def get_recipe(recipe_id: int):
     if row is None:
         raise HTTPException(status_code=404, detail="unknown recipe")
     return _row_to_recipe(row)
+
+
+MAX_SHOPPING_LIST_IDS = 100
+
+
+def _parse_ids(raw: str) -> list[int]:
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
+    if not parts:
+        raise HTTPException(status_code=422, detail="ids must contain at least one recipe id")
+    if len(parts) > MAX_SHOPPING_LIST_IDS:
+        raise HTTPException(
+            status_code=422, detail=f"at most {MAX_SHOPPING_LIST_IDS} ids allowed"
+        )
+    try:
+        ids = [int(p) for p in parts]
+    except ValueError:
+        raise HTTPException(status_code=422, detail="ids must be comma-separated integers")
+    return list(dict.fromkeys(ids))  # drop repeats, keep order
+
+
+@app.get("/shopping-list")
+def shopping_list(ids: str):
+    """Merge ingredients of the given recipes into a de-duplicated list.
+
+    Order follows the requested ids, then each recipe's ingredient order. Duplicates are
+    detected case-insensitively after trimming whitespace; the first spelling seen wins.
+    """
+    recipe_ids = _parse_ids(ids)
+    placeholders = ",".join("?" * len(recipe_ids))
+    with closing(get_db()) as conn:
+        rows = conn.execute(
+            f"SELECT * FROM recipes WHERE id IN ({placeholders})", recipe_ids
+        ).fetchall()
+    by_id = {r["id"]: _row_to_recipe(r) for r in rows}
+    missing = [rid for rid in recipe_ids if rid not in by_id]
+    if missing:
+        raise HTTPException(
+            status_code=404, detail=f"unknown recipe id(s): {', '.join(map(str, missing))}"
+        )
+
+    seen: set[str] = set()
+    items: list[str] = []
+    for rid in recipe_ids:
+        for ingredient in by_id[rid]["ingredients"]:
+            name = ingredient.strip()
+            key = name.casefold()
+            if name and key not in seen:
+                seen.add(key)
+                items.append(name)
+    return items
