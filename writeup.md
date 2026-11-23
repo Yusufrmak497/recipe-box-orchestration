@@ -1,4 +1,4 @@
-# Week 7 — Agent Orchestration: The Recipe Box Sprint
+# Week 8 — Agent Orchestration: The Recipe Box Sprint
 
 **Student:** Yusuf Irmak
 
